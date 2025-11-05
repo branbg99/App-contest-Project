@@ -1,50 +1,10 @@
 ProjectSearchBar
 
 Overview
-- Local academic paper search with math‑aware tokenization (text + LaTeX) and cosine similarity.
+- Local academic paper search with math-aware tokenization (text + LaTeX) and cosine similarity.
 - Backend in Python (vectorization, SQLite index, API server).
 - UI in TypeScript. If `pywebview` is installed the app opens in a desktop window; otherwise it opens in your default browser.
-- Agents: a single “Research Agent” can read the Top‑N ranked papers (LaTeX preferred), and report back with FOUND/NOT_FOUND, exact quotes, and citations.
-
-System Requirements
-- Python 3.9+ (recommended 3.10 or newer)
-- SQLite (bundled with Python on most platforms)
-- Optional for desktop window: `pywebview` (`pip install pywebview`) — otherwise it opens in your default browser
-
-First Run Checklist
-- Get a small dataset:
-  - Easiest: generate a mini dataset: `bash ProjectSearchBar/scripts/make_mini.sh 50 200`
-  - Or point to your existing data with `PROJECTSEARCHBAR_DATA_DIR`
-- Launch the app (pick your platform from the section below)
-- Open Settings in the UI to confirm DB is detected and try a test search
-- Optional: add your OpenAI API key in Settings → AI to enable the chat assistant
-
-Launch (Windows/Linux)
-- Windows (no console, double‑click): `Run-ProjectSearchBar-Windows.vbs`
-  - Opens the app without a console. It calls `launch_windows.bat` hidden; if unavailable, it tries `pythonw.exe launch.py`.
-  - Requires Python 3 installed unless you build the standalone `.exe` (see below).
-- Windows (console alternative): `launch_windows.bat`
-  - Shows a small console window; good for seeing logs.
-- Windows (standalone exe, no Python needed):
-  - Open PowerShell in `ProjectSearchBar` and run: `./build_windows_exe.ps1`
-  - When finished, double‑click `dist\ProjectSearchBar.exe`.
-- Linux (double‑click): `ProjectSearchBar.desktop`
-  - If blocked, right‑click → Properties → Permissions → “Allow executing file as a program”, or click “Allow Launch”.
-  - Some desktop environments require copying `.desktop` to `~/.local/share/applications` to persist trust.
-- Linux/macOS (console alternative): `./ProjectSearchBar/launch.sh`
-  - Activates `.venv` automatically if present, then runs `python3 launch.py`.
-
-Mini Dataset
-- To keep the repo small, use the mini dataset generator and run against it:
-  - Create: `bash ProjectSearchBar/scripts/make_mini.sh 50 200`
-  - Run (Linux/macOS): `PROJECTSEARCHBAR_DATA_DIR=ProjectSearchBar/data/mini ./ProjectSearchBar/launch.sh`
-  - Run (Windows, cmd): `set PROJECTSEARCHBAR_DATA_DIR=ProjectSearchBar\data\mini && ProjectSearchBar\launch_windows.bat`
-  - Run (Windows, exe): set the env var in PowerShell then start the exe:
-    `($env:PROJECTSEARCHBAR_DATA_DIR='ProjectSearchBar\data\mini'); .\dist\ProjectSearchBar.exe`
-
-Environment Variables
-- `PROJECTSEARCHBAR_HOST` (default `127.0.0.1`), `PROJECTSEARCHBAR_PORT` (default `8360`).
-- `PROJECTSEARCHBAR_DATA_DIR` to point the app at a specific dataset folder (e.g., `ProjectSearchBar/data/mini`).
+  New: the main search UI embeds your `api_gui_modular` chat renderer in a bottom‑left dock (KaTeX-enabled).
 
 What's New (Oct 2025 — Tokenization + Debug)
 - Shared tokenizer module: server now uses a unified tokenizer (`ProjectSearchBar/tokenize.py`) for text + LaTeX queries with canonicalization and symbol expansion.
@@ -83,14 +43,13 @@ Terminal Toggle + Centered Mode (UI2)
 - Toggle: Click `Terminal` (to the left of the DB banner in the header) to switch to a split layout with a taller diagnostics terminal.
 - The terminal logs DB/banner updates and auto-scrolls; preference persists across refresh.
  
-Paper Chat vs Agents (UI2)
-- Per‑result paper chat: Every result has an `AI` button that opens a clean chat for that single paper (no agent controls). The server loads paper context automatically (LaTeX preferred, chunks fallback).
-- Agents panel: In the search bar there is an `Agents` button. This opens a dedicated “Agent Mission” view with Top‑N control and a `Run Agents` button.
-  - Single Agent, sequential: reads Top‑N papers in the displayed order (respects current sorting) with fresh context per paper.
-  - Large read budget: attempts to read the full paper (LaTeX text) where possible.
-  - Results: streams FOUND/NOT_FOUND with exact quotes and [paperId] citations.
-  - Offline excerpts: if the model is unavailable, the agent extracts likely relevant sentences from the local LaTeX text and reports those.
-  - Context meter: shows approximate characters and tokens consumed across the mission.
+Paper Chat (UI2) + Enlarge
+- Results show an `AI` button that opens a right-side chat for that specific paper (ephemeral session).
+- The chat panel embeds the modular chat UI and loads paper context automatically (LaTeX preferred, vectors fallback).
+- Send messages via the input bar or Ctrl/Cmd+Enter; responses render as styled bubbles with math/code support.
+- Enlarge: Use the `Enlarge` button in the chat header to toggle to a larger preset size; click `Restore` to return to default.
+  - The layout responds: the left column (search/results) adjusts accordingly.
+  - Sizing uses CSS vars (`--chat-width`, `--chat-height`) with default 480px/65vh and large 720px/85vh.
  
 Known Notes (Chat Size)
 - Drag-to-resize was removed in favor of a simpler Enlarge/Restore button.
@@ -119,9 +78,6 @@ HTTP API Summary
   - `GET /api/llm/settings` → `{ ok, model, has_key }`
   - `POST /api/llm/settings` with `{ provider:'openai', model, api_key? }` → `{ ok }`
   - `POST /api/llm/test` → `{ ok, model }` or `{ ok:false, error/detail }`
-  - Agent settings
-  - `GET /api/agent/settings` → `{ ok, settings: { persona, default_top_n, token_budget, concurrency, latex_only, early_stop_k } }`
-  - `POST /api/agent/settings` with `{ settings: { ... } }` → `{ ok }`
 
 Current Progress (Oct 2025)
 - AI Chat dock with OpenAI: Save API key + select model (gpt‑5 / gpt‑5‑mini / gpt‑4o / gpt‑4o‑mini) in Settings. Chat now uses session‑based paper attachments; assistant is instructed to wrap math in `$...$`/`$$...$$`.
@@ -129,6 +85,14 @@ Current Progress (Oct 2025)
 - Search options moved to Settings: Kind filter, per‑paper cap, max results (defaults effectively unlimited in legacy mode).
 - Indexing stability: periodic commits, smaller posting batches, bounded token cache, incremental DF flush to prevent mid‑build freezes.
 - Performance: composite index on postings, read PRAGMAs, and parallel scoring with `PROJECTSEARCHBAR_WORKERS` (auto by default) for multi‑core speedup.
+ 
+
+Current Progress (Oct 2025)
+- LLM Chat dock: Embedded chat UI with KaTeX typesetting; uses `/api/ask`.
+- OpenAI integration: Settings include OpenAI API key + model selector (GPT‑5 / GPT‑5 Mini / GPT‑4o / GPT‑4o Mini). Key persists in `data/llm_settings.json`.
+- Search options moved to Settings: Kind filter, per‑paper cap, and max results. Defaults are effectively unlimited unless you set caps.
+- Indexing stability: Reduced posting batch sizes, added periodic commits (even in non‑low‑mem) and incremental DF flush to avoid freezes around ~30k papers.
+
 How It Works
 - Papers: We use your downloaded arXiv LaTeX archives at `/home/Brandon/arxiv_tex_selected`.
 - Vectorization (tools/vectorize.py):
@@ -216,7 +180,7 @@ Key Paths
 - `data/vectors`: per-paper vectorization outputs (chunks + tokens) — stays inside this project.
 - `data/index.sqlite`: global inverted index for fast cosine search over chunks.
 
-Build Index (CLI)
+Quick Start
 1) Vectorize papers (reads from `/home/Brandon/arxiv_tex_selected` by default):
    python3 tools/batch_vectorize.py --src /home/Brandon/arxiv_tex_selected --out ./data/vectors --workers auto
 
@@ -440,25 +404,3 @@ Next Tokenizer Improvements
 
 Legacy Copy
 - A legacy copy of the app (pre‑changes) was created at `/home/Brandon/ProjectSearchBar_legacy`. You can run it independently (set a different port with `PROJECTSEARCHBAR_PORT`).
-Agents (Single Research Agent)
-- Mission: Reads Top‑N ranked papers in order, with a fresh chat context per paper. Reports FOUND/NOT_FOUND with exact quotes and [paperId].
-- Data source: LaTeX files from `data/arxiv_tex_selected/<id>/...` or `<id>.tar.gz` under the same folder. The combined text is cached to `data/ai_cache/<id>.txt`.
-- Persona: The agent’s system persona is configurable via `/api/agent/settings` (also persisted to `data/agent_settings.json`). Default persona:
-  “You are a single research agent. Read ONLY the attached paper and answer the user’s instruction. If you find relevant evidence, reply with FOUND and provide exact quotes with section/theorem numbers and cite as [paperId]. If not, reply with NOT_FOUND and a brief note. Use LaTeX $...$ for math.”
-- Large budget: Agent calls use a large token budget (default 64000) to maximize per‑paper context. The actual usable context depends on your model’s limits.
-- Offline excerpts: If the LLM is offline or errors, the agent returns top matching sentences from the local LaTeX text as a fallback.
-
-Using Agents
-1. Run a search; sort if desired. The agent respects the displayed order.
-2. Click `Agents` in the search bar.
-3. Enter your instruction (e.g., “Find theorem statements proving X; include section numbers”).
-4. Set Top‑N (default 10). Click `Run Agents`.
-5. Watch the mission progress and read each paper’s finding in order.
-
-Customizing the Agent Persona
-- Read: `GET /api/agent/settings` to view the current persona and defaults.
-- Update: `POST /api/agent/settings` with `{ settings: { persona: "..." } }` to change it; persisted in `data/agent_settings.json`.
-- Example curl:
-  curl -sX POST -H 'Content-Type: application/json' \\
-    -d '{"settings":{"persona":"You are a careful research agent. Prefer theorem statements and cite [paperId]."}}' \\
-    http://127.0.0.1:8360/api/agent/settings
